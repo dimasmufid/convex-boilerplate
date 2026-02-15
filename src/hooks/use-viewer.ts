@@ -1,22 +1,15 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
-import { useConvex, useConvexAuth } from "convex/react"
+import { useConvexAuth, useQuery } from "convex/react"
 import { viewerQuery, type Viewer } from "@/lib/convex-functions"
 
 export function useViewer() {
-  const convex = useConvex()
   const { isAuthenticated, isLoading } = useConvexAuth()
+  const viewer = useQuery(viewerQuery, isAuthenticated ? {} : "skip")
+  const isViewerLoading = isAuthenticated && viewer === undefined
 
-  return useQuery<Viewer>({
-    queryKey: ["viewer", isAuthenticated],
-    enabled: !isLoading,
-    queryFn: async () => {
-      if (!isAuthenticated) {
-        return null
-      }
-
-      return await convex.query(viewerQuery, {})
-    },
-  })
+  return {
+    data: (isAuthenticated ? viewer : null) as Viewer | undefined,
+    isLoading: isLoading || isViewerLoading,
+  }
 }

@@ -59,9 +59,8 @@ export function NavUser({ compact }: { compact?: boolean }) {
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger id={triggerId} asChild>
             <SidebarMenuButton
-              id={triggerId}
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >

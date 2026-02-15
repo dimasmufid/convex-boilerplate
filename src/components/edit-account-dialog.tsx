@@ -1,8 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useConvex } from "convex/react"
+import { useMutation } from "convex/react"
 import {
   generateAvatarUploadUrlMutation,
   removeAvatarMutation,
@@ -45,41 +44,10 @@ export function EditAccountDialog({
   onOpenChange,
   viewer,
 }: EditAccountDialogProps) {
-  const convex = useConvex()
-  const queryClient = useQueryClient()
-
-  const updateProfile = useMutation({
-    mutationFn: async (args: { name?: string }) => {
-      return await convex.mutation(updateProfileMutation, args)
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["viewer"] })
-    },
-  })
-
-  const generateUploadUrl = useMutation({
-    mutationFn: async () => {
-      return await convex.mutation(generateAvatarUploadUrlMutation, {})
-    },
-  })
-
-  const setAvatar = useMutation({
-    mutationFn: async (args: { storageId: string }) => {
-      return await convex.mutation(setAvatarMutation, args)
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["viewer"] })
-    },
-  })
-
-  const removeAvatar = useMutation({
-    mutationFn: async () => {
-      return await convex.mutation(removeAvatarMutation, {})
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["viewer"] })
-    },
-  })
+  const updateProfile = useMutation(updateProfileMutation)
+  const generateUploadUrl = useMutation(generateAvatarUploadUrlMutation)
+  const setAvatar = useMutation(setAvatarMutation)
+  const removeAvatar = useMutation(removeAvatarMutation)
 
   const [name, setName] = React.useState("")
   const [imagePreview, setImagePreview] = React.useState<string | null>(null)
@@ -123,7 +91,7 @@ export function EditAccountDialog({
     setMessage("Saving...")
 
     try {
-      await updateProfile.mutateAsync({
+      await updateProfile({
         name,
       })
       setSavedState("Saved.")
@@ -143,7 +111,7 @@ export function EditAccountDialog({
     setMessage("Uploading image...")
 
     try {
-      const uploadUrl = await generateUploadUrl.mutateAsync()
+      const uploadUrl = await generateUploadUrl({})
       const response = await fetch(uploadUrl, {
         method: "POST",
         headers: {
@@ -161,7 +129,7 @@ export function EditAccountDialog({
         throw new Error("Upload did not return a storage id.")
       }
 
-      await setAvatar.mutateAsync({ storageId: payload.storageId })
+      await setAvatar({ storageId: payload.storageId })
       setSavedState("Image saved.")
     } catch (error) {
       setStatus("error")
@@ -179,7 +147,7 @@ export function EditAccountDialog({
     setMessage("Removing image...")
 
     try {
-      await removeAvatar.mutateAsync()
+      await removeAvatar({})
       setImagePreview(null)
       setSavedState("Image removed.")
     } catch (error) {
@@ -188,12 +156,7 @@ export function EditAccountDialog({
     }
   }
 
-  const isSaving =
-    status === "saving" ||
-    updateProfile.isPending ||
-    generateUploadUrl.isPending ||
-    setAvatar.isPending ||
-    removeAvatar.isPending
+  const isSaving = status === "saving"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

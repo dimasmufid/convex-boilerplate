@@ -4,11 +4,12 @@ import * as React from "react"
 import {
   IconDashboard,
   IconInnerShadowTop,
-  IconUsers,
   IconSettings,
+  IconUsers,
 } from "@tabler/icons-react"
 
 import Link from "next/link"
+import { useViewer } from "@/hooks/use-viewer"
 
 import { NavMain } from "@/components/nav-main"
 import {
@@ -21,10 +22,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { NavUser } from "@/components/nav-user"
-import { useSession } from "@/lib/auth-client"
 import { NavSecondary } from "@/components/nav-secondary"
 
-const baseNav = [
+const navMain = [
   {
     title: "Dashboard",
     url: "/dashboard",
@@ -33,15 +33,8 @@ const baseNav = [
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { data: session } = useSession()
-  const roles =
-    session?.user?.role && Array.isArray(session.user.role)
-      ? session.user.role
-      : typeof session?.user?.role === "string"
-        ? session.user.role.split(",").map((role) => role.trim())
-        : []
-  const isAdmin = roles.includes("admin")
-  const navMain = baseNav
+  const { data: viewer } = useViewer()
+  const isAdmin = viewer?.role === "admin"
 
   const navSecondary = [
     ...(isAdmin

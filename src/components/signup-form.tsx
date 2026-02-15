@@ -3,6 +3,8 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { useConvexAuth } from "convex/react"
+import { useAuthActions } from "@convex-dev/auth/react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -19,16 +21,23 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { signUp } from "@/lib/auth-client"
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const router = useRouter()
+  const { signIn } = useAuthActions()
+  const { isAuthenticated, isLoading } = useConvexAuth()
   const [name, setName] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [confirmPassword, setConfirmPassword] = React.useState("")
   const [image, setImage] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard")
+    }
+  }, [isAuthenticated, isLoading, router])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -42,26 +51,35 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     const toastId = toast.loading("Creating account...")
 
     try {
-      await signUp.email(
-        {
-          name,
-          email,
-          password,
-          image: image ?? undefined,
-          callbackURL: "/dashboard",
-        },
-        {
-          onSuccess: () => {
-            toast.success("Account created successfully.", { id: toastId })
-            router.push("/dashboard")
-          },
-          onError: (ctx) => {
-            toast.error(ctx.error.message, { id: toastId })
-          },
-        },
-      )
-    } catch {
-      toast.error("Unable to sign up. Please try again.", { id: toastId })
+      const payload: Record<string, string> = {
+        email: email.trim().toLowerCase(),
+        password,
+        flow: "signUp",
+      }
+
+      if (name.trim()) {
+        payload.name = name.trim()
+      }
+
+      if (image) {
+        payload.image = image
+      }
+
+      const result = await signIn("password", {
+        ...payload,
+      })
+
+      if (!result.signingIn) {
+        toast.info("Additional verification is required.", { id: toastId })
+        return
+      }
+
+      toast.success("Account created successfully.", { id: toastId })
+      router.replace("/dashboard")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to sign up.", {
+        id: toastId,
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -89,9 +107,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     <Card {...props}>
       <CardHeader>
         <CardTitle>Create an account</CardTitle>
-        <CardDescription>
-          Enter your information below
-        </CardDescription>
+        <CardDescription>Enter your information below</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit}>
@@ -104,7 +120,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 placeholder="John Doe"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                required
               />
             </Field>
             <Field>
@@ -120,8 +135,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
             </Field>
             <Field>
               <FieldLabel htmlFor="image">
-                Profile Image{" "}
-                <span className="text-muted-foreground">(optional)</span>
+                Profile Image <span className="text-muted-foreground">(optional)</span>
               </FieldLabel>
               {image ? (
                 <div className="flex items-center gap-3">
@@ -152,9 +166,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
               </FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="confirm-password">
-                Confirm Password
-              </FieldLabel>
+              <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
               <Input
                 id="confirm-password"
                 type="password"
@@ -166,7 +178,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
             </Field>
             <FieldGroup>
               <Field>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting || isLoading}>
                   {isSubmitting ? "Creating..." : "Create Account"}
                 </Button>
                 <FieldDescription className="px-6 text-center">

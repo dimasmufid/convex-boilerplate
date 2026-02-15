@@ -1,167 +1,80 @@
-# Next.js Boilerplate
+# Next.js + Convex Boilerplate
 
-A modern, production-ready Next.js boilerplate template featuring authentication, database integration, and a beautiful UI component library.
+A Next.js 16 boilerplate using Convex Cloud as the backend and Convex Auth for authentication.
 
-## 🚀 Tech Stack
+## Tech Stack
 
-- **[Next.js 16](https://nextjs.org/)** - React framework with App Router
-- **[Bun](https://bun.sh/)** - Fast JavaScript runtime and package manager
-- **[Drizzle ORM](https://orm.drizzle.team/)** - TypeScript ORM for PostgreSQL
-- **[Better Auth](https://www.better-auth.com/)** - Modern authentication library
-- **[shadcn/ui](https://ui.shadcn.com/)** - Beautiful, accessible component library
-- **[Tailwind CSS v4](https://tailwindcss.com/)** - Utility-first CSS framework
-- **[TypeScript](https://www.typescriptlang.org/)** - Type-safe JavaScript
+- Next.js 16 (App Router)
+- Convex Cloud (`convex`)
+- Convex Auth (`@convex-dev/auth`) with password auth
+- React 19 + TypeScript
+- shadcn/ui + Tailwind CSS v4
 
-## ✨ Features
+## What Changed
 
-- 🔐 **Authentication** - Email/password authentication with Better Auth
-- 👤 **Admin Panel** - Built-in admin functionality with user management
-- 🎨 **UI Components** - Pre-configured shadcn/ui components (New York style)
-- 🌓 **Dark Mode** - Theme switching with next-themes
-- 📊 **Data Tables** - Advanced table components with sorting, filtering, and pagination
-- 📱 **Responsive Design** - Mobile-first responsive layouts
-- 🐳 **Docker Support** - Production-ready Dockerfile included
-- 🗄️ **Database Migrations** - Drizzle migrations for schema management
+- Better Auth removed
+- Drizzle/Neon PostgreSQL removed
+- Authentication moved to Convex Auth
+- Backend configuration moved to `convex/`
+- Next.js proxy now guards protected routes via Convex Auth
 
-## 📋 Prerequisites
+## Required Environment Variables
 
-- [Bun](https://bun.sh/) (v1.2.0 or higher)
-- PostgreSQL database (local or hosted)
-- Node.js (for Docker builds)
+`.env.local` (for Next.js app):
 
-## 🏁 Getting Started
+- `CONVEX_DEPLOYMENT`
+- `NEXT_PUBLIC_CONVEX_URL`
 
-### 1. Clone the repository
+Convex deployment environment:
 
-```bash
-git clone <your-repo-url>
-cd boilerplate
-```
+- `JWT_PRIVATE_KEY`
 
-### 2. Install dependencies
+Use `.env.example` as the baseline for local setup.
+
+## Local Development
+
+1. Install dependencies:
 
 ```bash
 bun install
 ```
 
-### 3. Set up environment variables
-
-Copy `.env.example` to `.env.local` and fill in your values:
+2. Configure or create a Convex deployment (this writes Convex vars locally):
 
 ```bash
-cp .env.example .env.local
+bun run convex:dev
 ```
 
-Required environment variables:
-- `DATABASE_URL` - PostgreSQL connection string
-- `BETTER_AUTH_SECRET` - Secret key for Better Auth (generate with `openssl rand -base64 32`)
-- `BETTER_AUTH_URL` - Your application URL (e.g., `http://localhost:3000`)
-
-### 4. Set up the database
-
-Run database migrations:
+3. Set JWT private key in your Convex deployment:
 
 ```bash
-bunx drizzle-kit push
+openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
+bunx convex env set JWT_PRIVATE_KEY "$(cat private_key.pem)"
 ```
 
-Or generate migrations:
-
-```bash
-bunx drizzle-kit generate
-bunx drizzle-kit migrate
-```
-
-You can also use `npx drizzle-kit` if you prefer npm.
-
-### 5. Run the development server
+4. Run Next.js:
 
 ```bash
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+## Scripts
 
-## 📁 Project Structure
-
-```
-boilerplate/
-├── src/
-│   ├── app/                    # Next.js App Router pages
-│   │   ├── (app)/             # Protected app routes
-│   │   │   ├── admin/         # Admin panel
-│   │   │   └── dashboard/     # Dashboard page
-│   │   ├── (auth)/            # Auth routes
-│   │   │   ├── sign-in/       # Sign in page
-│   │   │   └── sign-up/       # Sign up page
-│   │   └── api/               # API routes
-│   │       └── auth/          # Better Auth API routes
-│   ├── components/            # React components
-│   │   ├── ui/               # shadcn/ui components
-│   │   └── ...               # Custom components
-│   ├── db/                   # Database schema and config
-│   │   ├── auth-schema.ts    # Better Auth schema
-│   │   └── index.ts          # Drizzle database instance
-│   ├── lib/                  # Utilities and helpers
-│   │   ├── auth.ts           # Better Auth server config
-│   │   ├── auth-client.ts    # Better Auth client config
-│   │   └── utils.ts          # Utility functions
-│   └── hooks/                # Custom React hooks
-├── drizzle/                  # Database migrations
-├── public/                   # Static assets
-├── Dockerfile               # Docker configuration
-└── drizzle.config.ts        # Drizzle ORM configuration
-```
-
-## 🛠️ Available Scripts
-
-- `bun run dev` - Start development server
-- `bun run build` - Build for production
-- `bun run start` - Start production server
+- `bun run dev` - Start Next.js
+- `bun run build` - Build production app
+- `bun run start` - Run production build
 - `bun run lint` - Run ESLint
+- `bun run convex:dev` - Start Convex dev deployment sync
+- `bun run convex:deploy` - Deploy Convex functions
 
-## 🐳 Docker Deployment
+## Convex Files
 
-Build and run with Docker:
+- `convex/auth.ts` - Convex Auth setup (password provider)
+- `convex/http.ts` - Auth HTTP routes
+- `convex/schema.ts` - Schema with auth tables
+- `proxy.ts` - Route protection and auth-route redirection
 
-```bash
-# Build the image
-docker build -t boilerplate .
+## Notes
 
-# Run the container
-docker run -p 3000:3000 \
-  -e DATABASE_URL=your_database_url \
-  -e BETTER_AUTH_SECRET=your_secret \
-  -e BETTER_AUTH_URL=http://localhost:3000 \
-  boilerplate
-```
-
-## 🔧 Configuration
-
-### Database
-
-The project uses Drizzle ORM with PostgreSQL. Configure your database connection in `drizzle.config.ts` and set the `DATABASE_URL` environment variable.
-
-### Authentication
-
-Better Auth is configured in `src/lib/auth.ts`. The admin plugin is enabled by default. Customize authentication providers and settings as needed.
-
-### UI Components
-
-shadcn/ui components are configured in `components.json`. Add new components using:
-
-```bash
-npx shadcn@latest add [component-name]
-```
-
-## 📚 Learn More
-
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Drizzle ORM Documentation](https://orm.drizzle.team/docs/overview)
-- [Better Auth Documentation](https://www.better-auth.com/docs)
-- [shadcn/ui Documentation](https://ui.shadcn.com/docs)
-- [Bun Documentation](https://bun.sh/docs)
-
-## 📝 License
-
-This project is open source and available under the [MIT License](LICENSE).
+- Admin features from Better Auth were removed and should be re-implemented as Convex functions if needed.
+- Current auth UI supports email/password sign-in and sign-up against Convex Auth.

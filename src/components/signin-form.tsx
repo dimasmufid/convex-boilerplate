@@ -3,6 +3,8 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { useConvexAuth } from "convex/react"
+import { useAuthActions } from "@convex-dev/auth/react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,16 +21,23 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { signIn } from "@/lib/auth-client"
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter()
+  const { signIn } = useAuthActions()
+  const { isAuthenticated, isLoading } = useConvexAuth()
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard")
+    }
+  }, [isAuthenticated, isLoading, router])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -36,25 +45,23 @@ export function LoginForm({
     const toastId = toast.loading("Signing in...")
 
     try {
-      await signIn.email(
-        {
-          email,
-          password,
-          callbackURL: "/dashboard",
-          rememberMe: true,
-        },
-        {
-          onSuccess: () => {
-            toast.success("Signed in successfully.", { id: toastId })
-            router.push("/dashboard")
-          },
-          onError: (ctx) => {
-            toast.error(ctx.error.message, { id: toastId })
-          },
-        },
-      )
-    } catch {
-      toast.error("Unable to sign in. Please try again.", { id: toastId })
+      const result = await signIn("password", {
+        email: email.trim().toLowerCase(),
+        password,
+        flow: "signIn",
+      })
+
+      if (!result.signingIn) {
+        toast.info("Additional verification is required.", { id: toastId })
+        return
+      }
+
+      toast.success("Signed in successfully.", { id: toastId })
+      router.replace("/dashboard")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to sign in.", {
+        id: toastId,
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -84,15 +91,6 @@ export function LoginForm({
                 />
               </Field>
               <Field>
-                {/* <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <a
-                    href="#"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                  >
-                    Forgot your password?
-                  </a>
-                </div> */}
                 <Input
                   id="password"
                   type="password"
@@ -102,7 +100,7 @@ export function LoginForm({
                 />
               </Field>
               <Field>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting || isLoading}>
                   {isSubmitting ? "Signing in..." : "Login"}
                 </Button>
                 <FieldDescription className="text-center">

@@ -8,10 +8,10 @@
 - `public/` stores static assets; `src/app/globals.css` defines global styles.
 
 ## Build, Test, and Development Commands
-- `npm run dev`: start the local Next.js dev server.
-- `npm run build`: create a production build.
-- `npm run start`: run the production build locally.
-- `npm run lint`: run ESLint with the Next.js config.
+- `bun run dev`: start the local Next.js dev server.
+- `bun run build`: create a production build.
+- `bun run start`: run the production build locally.
+- `bun run lint`: run ESLint with the Next.js config.
 
 ## Coding Style & Naming Conventions
 - TypeScript + React components live under `src/` and follow existing patterns.

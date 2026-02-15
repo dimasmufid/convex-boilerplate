@@ -1,13 +1,10 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { isAuthenticatedNextjs } from "@convex-dev/auth/nextjs/server";
 import { redirect } from "next/navigation";
 
 export default async function Home() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const isAuthenticated = await isAuthenticatedNextjs();
 
-  if (session) {
+  if (isAuthenticated) {
     redirect("/dashboard");
   }
 

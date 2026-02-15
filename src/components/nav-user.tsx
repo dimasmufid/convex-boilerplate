@@ -6,6 +6,9 @@ import {
   IconLogout,
   IconUserCircle,
 } from "@tabler/icons-react"
+import { useRouter } from "next/navigation"
+import { useAuthActions } from "@convex-dev/auth/react"
+import { useViewer } from "@/hooks/use-viewer"
 
 import {
   Avatar,
@@ -28,8 +31,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { EditAccountDialog } from "@/components/edit-account-dialog"
-import { useRouter } from "next/navigation"
-import { authClient, useSession } from "@/lib/auth-client"
 
 function getInitials(value: string) {
   return value
@@ -43,13 +44,15 @@ function getInitials(value: string) {
 export function NavUser({ compact }: { compact?: boolean }) {
   const { isMobile } = useSidebar()
   const router = useRouter()
-  const { data: session, isPending, refetch } = useSession()
+  const { signOut } = useAuthActions()
+  const { data: viewer, isLoading } = useViewer()
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
-  const userName =
-    session?.user?.name ?? session?.user?.email ?? "Guest"
-  const userEmail = session?.user?.email ?? "No email"
-  const userAvatar = session?.user?.image ?? null
-  const userInitials = getInitials(userName || userEmail || "User")
+
+  const isPending = isLoading
+  const userName = viewer?.name ?? viewer?.email ?? "User"
+  const userEmail = viewer?.email ?? "No email"
+  const userAvatar = viewer?.image ?? null
+  const userInitials = getInitials(userName || userEmail || "User") || "U"
 
   return (
     <SidebarMenu>
@@ -75,7 +78,7 @@ export function NavUser({ compact }: { compact?: boolean }) {
                     {isPending ? "Loading..." : userName}
                   </span>
                   <span className="text-muted-foreground truncate text-xs">
-                    {isPending ? "Fetching session..." : userEmail}
+                    {isPending ? "Fetching profile..." : userEmail}
                   </span>
                 </div>
               ) : null}
@@ -104,7 +107,7 @@ export function NavUser({ compact }: { compact?: boolean }) {
                     {isPending ? "Loading..." : userName}
                   </span>
                   <span className="text-muted-foreground truncate text-xs">
-                    {isPending ? "Fetching session..." : userEmail}
+                    {isPending ? "Fetching profile..." : userEmail}
                   </span>
                 </div>
               </div>
@@ -112,7 +115,7 @@ export function NavUser({ compact }: { compact?: boolean }) {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem
-                disabled={!session?.user || isPending}
+                disabled={!viewer || isPending}
                 onSelect={(event) => {
                   event.preventDefault()
                   setIsDialogOpen(true)
@@ -126,12 +129,8 @@ export function NavUser({ compact }: { compact?: boolean }) {
               disabled={isPending}
               onSelect={(event) => {
                 event.preventDefault()
-                void authClient.signOut({
-                  fetchOptions: {
-                    onSuccess: () => {
-                      router.push("/sign-in")
-                    },
-                  },
+                void signOut().then(() => {
+                  router.replace("/sign-in")
                 })
               }}
             >
@@ -144,9 +143,7 @@ export function NavUser({ compact }: { compact?: boolean }) {
       <EditAccountDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        session={session}
-        isPending={isPending}
-        refetch={refetch}
+        viewer={viewer ?? null}
       />
     </SidebarMenu>
   )

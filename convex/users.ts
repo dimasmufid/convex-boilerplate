@@ -10,14 +10,29 @@ export const viewer = queryGeneric({
       return null;
     }
 
-    return await ctx.db.get(userId);
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      return null;
+    }
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("userId", (q) => q.eq("userId", userId))
+      .unique();
+    const avatarUrl = profile?.avatarStorageId
+      ? await ctx.storage.getUrl(profile.avatarStorageId)
+      : null;
+
+    return {
+      ...user,
+      avatarUrl,
+    };
   },
 });
 
 export const updateProfile = mutationGeneric({
   args: {
     name: v.optional(v.string()),
-    image: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -30,22 +45,84 @@ export const updateProfile = mutationGeneric({
       throw new Error("User not found.");
     }
 
-    const patch: {
-      name?: string | undefined;
-      image?: string | undefined;
-    } = {};
-
     if (args.name !== undefined) {
       const trimmedName = args.name.trim();
-      patch.name = trimmedName || undefined;
+      await ctx.db.patch(userId, {
+        name: trimmedName || undefined,
+      });
     }
 
-    if (args.image !== undefined) {
-      const trimmedImage = args.image.trim();
-      patch.image = trimmedImage || undefined;
-    }
-
-    await ctx.db.patch(userId, patch);
     return await ctx.db.get(userId);
+  },
+});
+
+export const generateAvatarUploadUrl = mutationGeneric({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated.");
+    }
+
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const setAvatar = mutationGeneric({
+  args: {
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated.");
+    }
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("userId", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (profile?.avatarStorageId && profile.avatarStorageId !== args.storageId) {
+      await ctx.storage.delete(profile.avatarStorageId);
+    }
+
+    if (profile) {
+      await ctx.db.patch(profile._id, {
+        avatarStorageId: args.storageId,
+      });
+    } else {
+      await ctx.db.insert("userProfiles", {
+        userId,
+        avatarStorageId: args.storageId,
+      });
+    }
+
+    return { ok: true };
+  },
+});
+
+export const removeAvatar = mutationGeneric({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated.");
+    }
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("userId", (q) => q.eq("userId", userId))
+      .unique();
+    if (!profile?.avatarStorageId) {
+      return { ok: true };
+    }
+
+    await ctx.storage.delete(profile.avatarStorageId);
+    await ctx.db.patch(profile._id, {
+      avatarStorageId: undefined,
+    });
+
+    return { ok: true };
   },
 });

@@ -51,8 +51,9 @@ export function NavUser({ compact }: { compact?: boolean }) {
   const isPending = isLoading
   const userName = viewer?.name ?? viewer?.email ?? "User"
   const userEmail = viewer?.email ?? "No email"
-  const userAvatar = viewer?.image ?? null
+  const userAvatar = viewer?.avatarUrl ?? null
   const userInitials = getInitials(userName || userEmail || "User") || "U"
+  const triggerId = "nav-user-menu-trigger"
 
   return (
     <SidebarMenu>
@@ -60,6 +61,7 @@ export function NavUser({ compact }: { compact?: boolean }) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
+              id={triggerId}
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >

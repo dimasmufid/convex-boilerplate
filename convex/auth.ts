@@ -1,5 +1,4 @@
 import { convexAuth } from "@convex-dev/auth/server";
-import { Value } from "convex/values";
 import { Password } from "@convex-dev/auth/providers/Password";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
@@ -14,7 +13,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         const profile: {
           email: string;
           name?: string;
-          image?: string;
           role: "user";
         } = {
           email: email.trim().toLowerCase(),
@@ -26,12 +24,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           profile.name = name.trim();
         }
 
-        const image = params.image;
-        if (typeof image === "string" && image.trim()) {
-          profile.image = image.trim();
-        }
-
-        return profile as Record<string, Value> & { email: string };
+        return profile;
       },
     }),
   ],

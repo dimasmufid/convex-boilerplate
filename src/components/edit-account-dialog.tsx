@@ -3,7 +3,12 @@
 import * as React from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useConvex } from "convex/react"
-import { updateProfileMutation } from "@/lib/convex-functions"
+import {
+  generateAvatarUploadUrlMutation,
+  removeAvatarMutation,
+  setAvatarMutation,
+  updateProfileMutation,
+} from "@/lib/convex-functions"
 
 import {
   Dialog,
@@ -30,7 +35,7 @@ type EditAccountDialogProps = {
   onOpenChange: (open: boolean) => void
   viewer: {
     name?: string
-    image?: string
+    avatarUrl?: string | null
     email?: string
   } | null
 }
@@ -42,14 +47,40 @@ export function EditAccountDialog({
 }: EditAccountDialogProps) {
   const convex = useConvex()
   const queryClient = useQueryClient()
+
   const updateProfile = useMutation({
-    mutationFn: async (args: { name?: string; image?: string }) => {
+    mutationFn: async (args: { name?: string }) => {
       return await convex.mutation(updateProfileMutation, args)
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["viewer"] })
     },
   })
+
+  const generateUploadUrl = useMutation({
+    mutationFn: async () => {
+      return await convex.mutation(generateAvatarUploadUrlMutation, {})
+    },
+  })
+
+  const setAvatar = useMutation({
+    mutationFn: async (args: { storageId: string }) => {
+      return await convex.mutation(setAvatarMutation, args)
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["viewer"] })
+    },
+  })
+
+  const removeAvatar = useMutation({
+    mutationFn: async () => {
+      return await convex.mutation(removeAvatarMutation, {})
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["viewer"] })
+    },
+  })
+
   const [name, setName] = React.useState("")
   const [imagePreview, setImagePreview] = React.useState<string | null>(null)
   const [status, setStatus] = React.useState<"idle" | "saving" | "saved" | "error">(
@@ -60,10 +91,10 @@ export function EditAccountDialog({
   React.useEffect(() => {
     if (!open) return
     setName(viewer?.name ?? "")
-    setImagePreview(viewer?.image ?? null)
+    setImagePreview(viewer?.avatarUrl ?? null)
     setStatus("idle")
     setMessage(null)
-  }, [open, viewer?.image, viewer?.name])
+  }, [open, viewer?.avatarUrl, viewer?.name])
 
   const getInitials = (value: string) => {
     return value
@@ -74,7 +105,16 @@ export function EditAccountDialog({
       .join("")
   }
 
-  const handleSave = async () => {
+  const setSavedState = (text: string) => {
+    setStatus("saved")
+    setMessage(text)
+    window.setTimeout(() => {
+      setStatus("idle")
+      setMessage(null)
+    }, 1600)
+  }
+
+  const handleSaveName = async () => {
     if (!viewer || status === "saving") {
       return
     }
@@ -85,35 +125,75 @@ export function EditAccountDialog({
     try {
       await updateProfile.mutateAsync({
         name,
-        image: imagePreview ?? "",
       })
-      setStatus("saved")
-      setMessage("Saved.")
-      window.setTimeout(() => {
-        setStatus("idle")
-        setMessage(null)
-      }, 1600)
+      setSavedState("Saved.")
     } catch (error) {
       setStatus("error")
       setMessage(error instanceof Error ? error.message : "Update failed.")
     }
   }
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (!file) return
+    if (!file || !viewer) return
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : null
-      setImagePreview(result)
-    }
-    reader.onerror = () => {
+    const localPreviewUrl = URL.createObjectURL(file)
+    setImagePreview(localPreviewUrl)
+    setStatus("saving")
+    setMessage("Uploading image...")
+
+    try {
+      const uploadUrl = await generateUploadUrl.mutateAsync()
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": file.type,
+        },
+        body: file,
+      })
+
+      if (!response.ok) {
+        throw new Error("Upload failed.")
+      }
+
+      const payload = (await response.json()) as { storageId?: string }
+      if (!payload.storageId) {
+        throw new Error("Upload did not return a storage id.")
+      }
+
+      await setAvatar.mutateAsync({ storageId: payload.storageId })
+      setSavedState("Image saved.")
+    } catch (error) {
       setStatus("error")
-      setMessage("Failed to read the selected image.")
+      setMessage(error instanceof Error ? error.message : "Image upload failed.")
+      setImagePreview(viewer.avatarUrl ?? null)
+    } finally {
+      URL.revokeObjectURL(localPreviewUrl)
     }
-    reader.readAsDataURL(file)
   }
+
+  const handleRemoveImage = async () => {
+    if (!viewer) return
+
+    setStatus("saving")
+    setMessage("Removing image...")
+
+    try {
+      await removeAvatar.mutateAsync()
+      setImagePreview(null)
+      setSavedState("Image removed.")
+    } catch (error) {
+      setStatus("error")
+      setMessage(error instanceof Error ? error.message : "Image remove failed.")
+    }
+  }
+
+  const isSaving =
+    status === "saving" ||
+    updateProfile.isPending ||
+    generateUploadUrl.isPending ||
+    setAvatar.isPending ||
+    removeAvatar.isPending
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -137,9 +217,9 @@ export function EditAccountDialog({
             </Avatar>
             <ItemContent>
               <ItemTitle>Profile image</ItemTitle>
-              <ItemDescription>Upload a new image to personalize your account.</ItemDescription>
+              <ItemDescription>Upload to Convex Storage and link to your account.</ItemDescription>
             </ItemContent>
-            <ItemActions>
+            <ItemActions className="flex gap-2">
               <Input
                 id="edit-image"
                 type="file"
@@ -147,6 +227,9 @@ export function EditAccountDialog({
                 onChange={handleImageChange}
                 className="max-w-56"
               />
+              <Button type="button" variant="outline" onClick={handleRemoveImage} disabled={isSaving}>
+                Remove
+              </Button>
             </ItemActions>
           </Item>
           <ItemSeparator />
@@ -182,8 +265,8 @@ export function EditAccountDialog({
               </ItemDescription>
             </ItemContent>
             <ItemActions>
-              <Button type="button" onClick={handleSave} disabled={status === "saving" || !viewer}>
-                {status === "saving" ? "Saving..." : "Save changes"}
+              <Button type="button" onClick={handleSaveName} disabled={isSaving || !viewer}>
+                {isSaving ? "Saving..." : "Save name"}
               </Button>
             </ItemActions>
           </Item>

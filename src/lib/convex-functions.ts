@@ -3,8 +3,8 @@ import { makeFunctionReference } from "convex/server"
 export type Viewer = {
   name?: string
   email?: string
-  image?: string
   role?: "user" | "admin"
+  avatarUrl?: string | null
 } | null
 
 export const viewerQuery = makeFunctionReference<
@@ -17,7 +17,30 @@ export const updateProfileMutation = makeFunctionReference<
   "mutation",
   {
     name?: string
-    image?: string
   },
   Viewer
 >("users:updateProfile")
+
+export const generateAvatarUploadUrlMutation = makeFunctionReference<
+  "mutation",
+  Record<string, never>,
+  string
+>("users:generateAvatarUploadUrl")
+
+export const setAvatarMutation = makeFunctionReference<
+  "mutation",
+  {
+    storageId: string
+  },
+  {
+    ok: boolean
+  }
+>("users:setAvatar")
+
+export const removeAvatarMutation = makeFunctionReference<
+  "mutation",
+  Record<string, never>,
+  {
+    ok: boolean
+  }
+>("users:removeAvatar")

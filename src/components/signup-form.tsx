@@ -20,7 +20,6 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const router = useRouter()
@@ -30,7 +29,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [confirmPassword, setConfirmPassword] = React.useState("")
-  const [image, setImage] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   React.useEffect(() => {
@@ -61,10 +59,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         payload.name = name.trim()
       }
 
-      if (image) {
-        payload.image = image
-      }
-
       const result = await signIn("password", {
         ...payload,
       })
@@ -83,24 +77,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) {
-      setImage(null)
-      return
-    }
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      setImage(typeof reader.result === "string" ? reader.result : null)
-    }
-    reader.onerror = () => {
-      toast.error("Failed to read the selected image.")
-      setImage(null)
-    }
-    reader.readAsDataURL(file)
   }
 
   return (
@@ -131,25 +107,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="image">
-                Profile Image <span className="text-muted-foreground">(optional)</span>
-              </FieldLabel>
-              {image ? (
-                <div className="flex items-center gap-3">
-                  <Avatar className="size-16">
-                    <AvatarImage src={image} alt="Profile preview" />
-                    <AvatarFallback>IMG</AvatarFallback>
-                  </Avatar>
-                </div>
-              ) : null}
-              <Input
-                id="image"
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
               />
             </Field>
             <Field>
